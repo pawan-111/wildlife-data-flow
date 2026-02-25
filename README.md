@@ -1,136 +1,60 @@
-🐘 Wildlife Conservation — End-to-End Data Engineering Pipeline
+🐘 Wildlife Conservation: End-to-End Medallion Lakehouse
 📌 Project Overview
-This project implements a production-style Lakehouse data pipeline using AWS S3 and Databricks (Delta Lake) to process wildlife detection data.
-The pipeline follows the Medallion Architecture (Staging → Bronze → Silver → Gold) and supports fully incremental data processing using Delta MERGE and partition-based updates.
-The system enables seasonal wildlife activity analysis, zone-wise monitoring, and human intrusion tracking.
-🏗 Architecture
-AWS S3 (Raw CSV Files)
-        ↓
-Staging Layer (Temporary Batch Load)
-        ↓
-Bronze Layer (Raw Delta Storage)
-        ↓
-Silver Layer (Cleaned & Partitioned Data)
-        ↓
-Gold Layer (Aggregated Fact Table)
-        ↓
-Dashboard / SQL Analytics
+This project implements a production-style Lakehouse data pipeline using AWS S3 and Databricks (Delta Lake) to process and analyze wildlife detection data. The system is designed to handle messy sensor logs and transform them into actionable intelligence for ranger deployment and poaching risk detection. 
+
+🏗 Architectural Strategy
+
+The pipeline follows the Medallion Architecture, ensuring high data quality and a clear lineage from raw ingestion to executive-level reporting. 
+
+Staging Layer: Temporary batch loading from AWS S3 to isolate new data and validate schemas.
+
+Bronze (Raw): Immutable source of truth storing raw records with load_date metadata. 
+
+Silver (Cleaned): Application of data quality rules, standardized timestamps, and partitioning by (year, month).
+
+Gold (Aggregated): Business-level Fact Table (fact_wildlife_activity) optimized for high-speed BI querying. 
+
+🔁 Incremental Load & Idempotency
+A core focus of this project is cost-efficiency and scalability. Instead of expensive full reloads, the pipeline utilizes: 
+
+Delta MERGE: Ensures idempotent loads by preventing duplicate records in the Bronze and Silver layers. 
+
+Partition-Aware Updates: When new data arrives, the system identifies only the impacted (year, month) partitions in the Gold layer, deletes them, and recalculates—significantly reducing compute costs. 
+
+SHA-256 Surrogate Keys: Implemented to maintain data integrity across distributed datasets. 
+
+📊 Dataset & Business Intelligence
+The pipeline processes detection logs containing species (Elephant, Tiger, Deer, Human), confidence scores, and GPS coordinates across a 1-year span. 
+
+Key Insights Enabled:
+
+🚨 Human Intrusion Monitoring: Real-time tracking of unauthorized activity in "Core" forest zones. 
+
+📅 Seasonal Movement: Analyzing how wildlife migration patterns shift across different months. 
+
+📉 Operational Efficiency: Automating detection reporting to reduce manual effort by 80%. 
+
+🛠 Tech Stack & Optimizations
+Processing: PySpark, Spark SQL 
+
+Storage: AWS S3 (Data Lake), Delta Lake 
+
+Orchestration: Databricks Job Scheduling 
+
+Performance:
+
+Z-ORDER Clustering: Applied to zone and species for faster filter performance.
+
+Partitioning: Strategically partitioned by (year, month) to optimize large-scale aggregations. 
+
 📂 Project Structure
+Bash
 wildlife-data-engineering/
-│
-├── data_generator/
-│   └── generate_wildlife_dataset.py
-│
+├── data_generator/       # Script to simulate 1 year of sensor data
 ├── notebooks/
-│   ├── 01_staging_ingestion
-│   ├── 02_bronze_merge
-│   ├── 03_silver_transformation
-│   ├── 04_gold_incremental_update
-│
-├── sql_queries/
-│   └── dashboard_queries.sql
-│
+│   ├── 01_staging        # S3 Ingestion
+│   ├── 02_bronze         # MERGE & Raw Storage
+│   ├── 03_silver         # Quality rules & Partitioning
+│   └── 04_gold           # Incremental Fact Table updates
+├── sql_queries/          # BI/Dashboard queries
 └── README.md
-📊 Dataset Description
-Raw wildlife detection logs contain:
-Column	Description
-image_id	Unique detection ID
-species	Detected species (Elephant, Tiger, Deer, Human)
-confidence	Model confidence score
-latitude	GPS latitude
-longitude	GPS longitude
-timestamp	Detection timestamp
-camera_id	Camera source
-zone	Forest zone (Core, Buffer, Edge)
-The dataset spans 1 full year (2025) with seasonal patterns built into the data.
-🟤 Medallion Architecture Implementation
-🟡 1. Staging Layer
-Loads new CSV batch from AWS S3
-Adds load_date
-Temporary holding area
-Enables controlled batch processing
-Purpose:
-Validate schema
-Isolate new data
-Prevent corrupt data from entering Bronze
-🟤 2. Bronze Layer (Raw Storage)
-Stores raw records as Delta table
-Uses MERGE on image_id
-Preserves ingestion history
-Characteristics:
-No transformations
-Source of truth
-Supports reprocessing
-🟠 3. Silver Layer (Cleaned & Structured)
-Data quality rules applied:
-Remove NULL confidence
-Remove confidence < 0.6
-Handle invalid timestamps using try_to_timestamp
-Standardize species names
-Derive:
-event_time
-activity_date
-year
-month
-Partitioned by:
-(year, month)
-Purpose:
-Analytics-ready dataset
-Optimized for aggregation
-🟡 4. Gold Layer (Business Fact Table)
-Table: fact_wildlife_activity
-| year | month | zone | species | detection_count |
-Aggregation logic:
-GROUP BY year, month, zone, species
-COUNT(*)
-Partitioned by:
-(year, month)
-This table powers dashboards and analytical queries.
-🔁 Incremental Load Strategy
-The pipeline supports fully incremental processing:
-New data lands in S3
-Loaded into Staging
-MERGE into Bronze (no duplicates)
-Cleaned and MERGE into Silver
-Identify impacted (year, month) partitions
-Delete only impacted partitions in Gold
-Recalculate and insert updated aggregates
-Clear staging
-✔ No full reload
-✔ Partition-aware processing
-✔ Delta Lake compliant
-✔ Efficient and scalable
-📈 Sample Business Insights Enabled
-The Gold fact table enables:
-📅 Monthly wildlife activity trend
-🗺 Zone-wise activity comparison
-🐯 Species seasonality analysis
-🚨 Human intrusion monitoring
-📊 High-risk zone identification
-Use Cases:
-Ranger deployment planning
-Poaching risk detection
-Seasonal wildlife movement analysis
-Human-wildlife conflict prevention
-⚙️ Technologies Used
-AWS S3 (Data Lake Storage)
-Databricks
-Apache Spark (PySpark)
-Delta Lake
-SQL
-Medallion Architecture
-Partition-based incremental processing
-🚀 Performance Optimization
-Partitioning by (year, month)
-Delta MERGE for idempotent loads
-OPTIMIZE with ZORDER
-Auto-compaction enabled
-Correlated DELETE using EXISTS
-🎯 Key Engineering Concepts Demonstrated
-Lakehouse Architecture
-Incremental ETL Processing
-Data Quality Handling
-Partition-Based Aggregation
-Delta Lake Limitations & Workarounds
-Idempotent Pipeline Design
-Production-Level Workflow
